@@ -1,0 +1,7 @@
+.SearchResult {
+  cursor: pointer;
+}
+
+.SearchResult:hover {
+  background-color: aquamarine;
+}
