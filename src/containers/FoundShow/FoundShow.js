@@ -3,18 +3,23 @@ import parse from "html-react-parser";
 import axios from "../../axios-base";
 import InputGroup from "../../components/InputGroup/InputGroup";
 import SearchResult from "../../components/SearchResult/SearchResult";
+import Modal from "../../components/UI/Modal/Modal";
 
 const ADD_INPUT_VALUE = "ADD_INPUT_VALUE";
 const IS_FINDED = "IS_FINDED";
 const SET_SHOW = "SET_SHOW";
 const SET_FOUND_SHOWS = "SET_FOUND_SHOWS";
 const FOUND_SHOW_SELECTED = "FOUND_SHOW_SELECTED";
+const SET_ERROR = "SET_ERROR";
+const CLOSE = "CLOSE";
 
 const initialState = {
   show: [],
   foundShows: [],
   inputValue: "",
-  isFinded: false
+  isFinded: false,
+  error: "",
+  isOpen: false
 };
 
 const reducer = (state, action) => {
@@ -34,6 +39,10 @@ const reducer = (state, action) => {
         isFinded: false,
         inputValue: (state.inputValue = "")
       };
+    case SET_ERROR:
+      return { ...state, error: (state.error = action.error), isOpen: true };
+    case CLOSE:
+      return { ...state, isOpen: false };
     default:
       return state;
   }
@@ -54,18 +63,26 @@ const FoundShow = props => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await axios.get(`${props.history.location.pathname}`);
-      dispatch({ type: SET_SHOW, data: response.data });
-      response.data.length > 0 && dispatch({ type: IS_FINDED });
+      try {
+        const response = await axios.get(`${props.history.location.pathname}`);
+        dispatch({ type: SET_SHOW, data: response.data });
+        response.data.length > 0 && dispatch({ type: IS_FINDED });
+      } catch (error) {
+        console.log(error);
+      }
     };
     fetchData();
-  }, [state.foundShows, props.history.location.pathname]);
+  }, [props.history.location.pathname]);
 
   useEffect(() => {
     const fetchSearchData = async () => {
-      const response = await axios.get(`search/shows?q=${state.inputValue}`);
-      dispatch({ type: SET_FOUND_SHOWS, data: response.data });
-      response.data.length > 0 && dispatch({ type: IS_FINDED });
+      try {
+        const response = await axios.get(`search/shows?q=${state.inputValue}`);
+        dispatch({ type: SET_FOUND_SHOWS, data: response.data });
+        response.data.length > 0 && dispatch({ type: IS_FINDED });
+      } catch (error) {
+        dispatch({ type: SET_ERROR, error: error.toString() });
+      }
     };
     state.inputValue.length > 0 && fetchSearchData();
   }, [state.inputValue]);
@@ -76,26 +93,32 @@ const FoundShow = props => {
   return (
     <div className="container">
       <InputGroup change={addInputValue} value={state.inputValue} />
-      {state.isFinded && (
-        <Fragment>
-          <div
-            className={addClass}
-            style={{ border: "1px solid #ced4da", borderRadius: ".25rem" }}
-          >
-            <ul className="p-0 m-0" style={{ listStyle: "none" }}>
-              {state.foundShows.map(
-                el =>
-                  el.score > 2 && (
-                    <SearchResult
-                      key={el.show.id}
-                      name={el.show.name}
-                      click={() => showSelected(el.show.id)}
-                    />
-                  )
-              )}
-            </ul>
-          </div>
-        </Fragment>
+      {state.error.length > 0 ? (
+        <Modal show={state.isOpen} close={() => dispatch({ type: CLOSE })}>
+          {state.error}
+        </Modal>
+      ) : (
+        state.isFinded && (
+          <Fragment>
+            <div
+              className={addClass}
+              style={{ border: "1px solid #ced4da", borderRadius: ".25rem" }}
+            >
+              <ul className="p-0 m-0" style={{ listStyle: "none" }}>
+                {state.foundShows.map(
+                  el =>
+                    el.score > 2 && (
+                      <SearchResult
+                        key={el.show.id}
+                        name={el.show.name}
+                        click={() => showSelected(el.show.id)}
+                      />
+                    )
+                )}
+              </ul>
+            </div>
+          </Fragment>
+        )
       )}
       <h2 className="text-center m-4">
         {state.show.name} {state.show.network && `(${state.show.network.name})`}
